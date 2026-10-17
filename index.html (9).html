@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Dynamic Trenchless — Incident / Near-Miss Report</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --primary-mid: #1a1a1a;
+    --primary-light: #FFF8E1;
+    --accent: #F5A800;
+    --red: #C62828; --red-light: #FFEBEE;
+    --green: #2E7D32; --green-light: #E8F5E9;
+    --gray-dark: #444; --gray-mid: #888; --gray-light: #E4E4E4; --gray-bg: #F2F2F2; --white: #FFF;
+    --radius: 14px; --shadow: 0 2px 16px rgba(0,0,0,0.08);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--gray-bg); color: #111; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+  .brand-header { background: var(--primary-mid); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 20px rgba(0,0,0,0.35); }
+  .brand-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; }
+  .brand-name { color: #fff; font-size: 16px; font-weight: 900; letter-spacing: 0.3px; line-height: 1.15; }
+  .brand-name span { color: var(--accent); }
+  .brand-tag { color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; margin-top: 2px; }
+  .brand-badge { background: #1a1a1a; color: #F5A800; font-size: 11px; font-weight: 900; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
+  .brand-sub { color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; padding: 0 16px 8px; }
+  .progress-track { display: flex; align-items: center; padding: 0 16px 12px; }
+  .progress-seg { height: 3px; flex: 1; background: rgba(255,255,255,0.15); transition: background 0.35s; }
+  .progress-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); flex-shrink: 0; transition: background 0.35s, transform 0.2s; }
+  .progress-dot.active { background: #fff; transform: scale(1.4); }
+  .progress-dot.done { background: var(--accent); }
+  .progress-seg.done { background: var(--accent); }
+  .brand-accent { height: 3px; background: linear-gradient(90deg, var(--accent), #fff 100%); }
+
+  .screen { display: none; padding: 16px; max-width: 520px; margin: 0 auto; padding-bottom: 40px; }
+  .screen.active { display: block; }
+  .page-title { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 3px; }
+  .page-sub { font-size: 13px; color: var(--gray-mid); margin-bottom: 18px; line-height: 1.4; }
+
+  .card { background: var(--white); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.04); }
+  .card-title { font-size: 10px; font-weight: 900; letter-spacing: 1.6px; text-transform: uppercase; color: var(--primary-mid); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .card-title::before { content: ""; display: block; width: 3px; height: 14px; background: var(--primary-mid); border-radius: 2px; flex-shrink: 0; }
+
+  .field { margin-bottom: 13px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 10px; font-weight: 800; color: var(--gray-mid); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .field input, .field select, .field textarea { width: 100%; border: 1.5px solid var(--gray-light); border-radius: 10px; padding: 13px 14px; font-size: 16px; color: #111; background: #fafafa; outline: none; transition: border-color 0.2s; font-family: inherit; -webkit-appearance: none; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary-mid); background: var(--white); }
+  .field textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .type-chip { border: 1.5px solid var(--gray-light); border-radius: 10px; padding: 11px 10px; background: white; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--gray-dark); text-align: left; transition: all 0.15s; font-family: inherit; width: 100%; display: flex; align-items: center; gap: 8px; }
+  .type-chip .ti { font-size: 18px; flex-shrink: 0; }
+  .type-chip.selected { background: var(--primary-light); border-color: var(--primary-mid); color: var(--primary-mid); }
+
+  .sev-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .sev-chip { border: 2px solid var(--gray-light); border-radius: 10px; padding: 12px 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 800; text-align: center; transition: all 0.15s; font-family: inherit; width: 100%; }
+  .sev-chip .si { font-size: 20px; display: block; margin-bottom: 3px; }
+  .sev-chip.sev-low.sel { background: #E8F5E9; border-color: #2E7D32; color: #2E7D32; }
+  .sev-chip.sev-med.sel { background: #FFF3E0; border-color: #E65100; color: #E65100; }
+  .sev-chip.sev-high.sel { background: var(--red-light); border-color: var(--red); color: var(--red); }
+
+  .check-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--gray-light); cursor: pointer; }
+  .check-row:last-child { border-bottom: none; }
+  .check-box { width: 22px; height: 22px; border: 2px solid var(--gray-light); border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; background: white; }
+  .check-box.checked { background: var(--primary-mid); border-color: var(--primary-mid); color: white; }
+  .check-label { font-size: 14px; font-weight: 500; flex: 1; line-height: 1.3; }
+
+  .yn-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--gray-light); gap: 8px; }
+  .yn-row:last-child { border-bottom: none; }
+  .yn-label { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.3; }
+  .yn-btns { display: flex; gap: 6px; flex-shrink: 0; }
+  .yn-btn { width: 46px; height: 34px; border: 1.5px solid var(--gray-light); border-radius: 8px; background: white; font-size: 12px; font-weight: 800; cursor: pointer; color: var(--gray-mid); transition: all 0.15s; font-family: inherit; }
+  .yn-btn.yes.active { background: var(--green); border-color: var(--green); color: white; }
+  .yn-btn.no.active { background: var(--red); border-color: var(--red); color: white; }
+  .yn-btn.na.active { background: #888; border-color: #888; color: white; }
+
+  .ca-row { background: #fafafa; border: 1.5px solid var(--gray-light); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .ca-row-num { font-size: 10px; font-weight: 900; color: var(--primary-mid); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .add-ca-btn { width: 100%; padding: 12px; background: var(--primary-light); color: var(--primary-mid); border: 1.5px dashed var(--primary-mid); border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; }
+
+  .sig-canvas-wrap { border: 1.5px solid var(--gray-light); border-radius: 10px; background: white; position: relative; overflow: hidden; }
+  .sig-canvas-wrap canvas { display: block; width: 100%; height: 70px; touch-action: none; }
+  .clear-sig { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.07); border: none; border-radius: 6px; padding: 3px 9px; font-size: 11px; cursor: pointer; color: var(--gray-dark); font-family: inherit; font-weight: 600; }
+  .sig-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #ccc; font-size: 13px; pointer-events: none; white-space: nowrap; }
+
+  .summary-stat { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--gray-light); font-size: 13px; gap: 8px; }
+  .summary-stat:last-child { border-bottom: none; }
+  .summary-stat .lbl { color: var(--gray-mid); }
+  .badge { padding: 2px 10px; border-radius: 20px; font-weight: 800; font-size: 12px; }
+  .badge-primary { background: var(--primary-light); color: var(--primary-mid); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+
+  .btn-primary { width: 100%; padding: 17px; background: var(--primary-mid); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 900; cursor: pointer; font-family: inherit; margin-top: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.2); transition: transform 0.1s; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-outline { width: 100%; padding: 14px; background: transparent; color: var(--gray-dark); border: 1.5px solid var(--gray-light); border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; font-family: inherit; }
+  .btn-success { width: 100%; padding: 17px; background: linear-gradient(135deg, #2E7D32, #43a047); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 900; cursor: pointer; font-family: inherit; margin-top: 6px; box-shadow: 0 4px 14px rgba(46,125,50,0.3); }
+
+  .sending-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .sending-overlay.active { display: flex; }
+  .sending-card { background: #1E1E1E; border-radius: 20px; padding: 32px 40px; text-align: center; border: 1px solid #333; }
+  .sending-spinner { width: 44px; height: 44px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #fff; border-radius: 50%; animation: spin 0.75s linear infinite; margin: 0 auto 14px; }
+  .sending-text { color: white; font-size: 15px; font-weight: 700; }
+  .sending-sub { color: #666; font-size: 12px; margin-top: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .done-hero { background: var(--primary-mid); border-radius: var(--radius); padding: 28px 20px 24px; margin-bottom: 16px; border: 2px solid var(--accent); text-align: center; }
+  .done-icon { font-size: 52px; margin-bottom: 10px; }
+  .done-title { color: #fff; font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+  .done-sub { color: rgba(255,255,255,0.6); font-size: 14px; line-height: 1.6; }
+  .email-ok { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 12px; background: #E8F5E9; color: #2E7D32; border: 1px solid #a5d6a7; }
+  .email-fail { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 12px; background: #FFEBEE; color: #C62828; border: 1px solid #ef9a9a; }
+  .alert { background: #fff8e1; border: 1.5px solid #F9A825; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: #795548; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="sending-overlay" id="sendingOverlay">
+  <div class="sending-card">
+    <div class="sending-spinner"></div>
+    <div class="sending-text">Submitting incident report...</div>
+    <div class="sending-sub">info@dynamictrenchless.com</div>
+  </div>
+</div>
+
+<div class="brand-header">
+  <div class="brand-top">
+    <div>
+      <div class="brand-name">Dynamic <span>Solutions</span></div>
+      <div class="brand-tag">Dynamic Trenchless Solutions Ltd.</div>
+    </div>
+    <div class="brand-badge" id="stepLabel">Step 1 of 5</div>
+  </div>
+  <div class="brand-sub">&#x1F6A8; Incident / Near-Miss Investigation Report</div>
+  <div class="progress-track">
+    <div class="progress-dot active" id="pd1"></div><div class="progress-seg" id="ps1"></div>
+    <div class="progress-dot" id="pd2"></div><div class="progress-seg" id="ps2"></div>
+    <div class="progress-dot" id="pd3"></div><div class="progress-seg" id="ps3"></div>
+    <div class="progress-dot" id="pd4"></div><div class="progress-seg" id="ps4"></div>
+    <div class="progress-dot" id="pd5"></div>
+  </div>
+  <div class="brand-accent"></div>
+</div>
+
+<!-- SCREEN 1: INCIDENT INFO -->
+<div class="screen active" id="screen1">
+  <div class="page-title">Incident Info</div>
+  <div class="page-sub">Basic details about what happened and where.</div>
+  <div class="alert">&#x26A0;&#xFE0F; If this is a life-threatening emergency, call 911 before completing this report.</div>
+
+  <div class="card">
+    <div class="card-title">Incident Type</div>
+    <div class="type-grid" id="typeGrid"></div>
+    <div class="field" id="otherWrap" style="display:none;margin-top:10px;">
+      <label>Specify Other</label>
+      <input type="text" id="otherType" placeholder="Describe incident type">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Severity</div>
+    <div class="sev-grid">
+      <button class="sev-chip sev-low" id="sev-Low" onclick="selSev('Low')"><span class="si">&#x1F7E2;</span>Low</button>
+      <button class="sev-chip sev-med" id="sev-Medium" onclick="selSev('Medium')"><span class="si">&#x1F7E0;</span>Medium</button>
+      <button class="sev-chip sev-high" id="sev-High" onclick="selSev('High')"><span class="si">&#x1F534;</span>High / Critical</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Location &amp; Time</div>
+    <div class="field"><label>Project / Job Name</label><input type="text" id="projectName" placeholder="e.g. Smith Residence &#x2014; Main Break"></div>
+    <div class="field"><label>Incident Location</label><input type="text" id="incidentLocation" placeholder="Street address or site description"></div>
+    <div class="field-row">
+      <div class="field"><label>Date of Incident</label><input type="date" id="incidentDate"></div>
+      <div class="field"><label>Time</label><input type="time" id="incidentTime"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Date Reported</label><input type="date" id="reportedDate"></div>
+      <div class="field"><label>Supervisor</label><input type="text" id="supervisorName" placeholder="Full name"></div>
+    </div>
+    <div class="field"><label>Investigation Completed By</label><input type="text" id="investigatorName" placeholder="Full name"></div>
+  </div>
+
+  <button class="btn-primary" onclick="goTo(2)">Next: People Involved &#x2192;</button>
+</div>
+
+<!-- SCREEN 2: PEOPLE & DESCRIPTION -->
+<div class="screen" id="screen2">
+  <div class="page-title">People &amp; Description</div>
+  <div class="page-sub">Who was involved and what happened.</div>
+
+  <div class="card">
+    <div class="card-title">Person(s) Involved</div>
+    <div class="field"><label>Name</label><input type="text" id="involvedName" placeholder="Full name"></div>
+    <div class="field"><label>Position / Trade</label><input type="text" id="involvedPosition" placeholder="e.g. Journeyman Plumber, Operator"></div>
+    <div class="field"><label>Employer</label><input type="text" id="involvedEmployer" placeholder="Dynamic Trenchless"></div>
+    <div class="field"><label>Witness(es)</label><input type="text" id="witnesses" placeholder="Names of any witnesses"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Description of Incident</div>
+    <div class="field">
+      <label>Describe what happened, including work being performed immediately before the incident.</label>
+      <textarea id="incidentDesc" placeholder="Describe the sequence of events in detail..." style="min-height:130px;"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Immediate Actions Taken</div>
+    <div id="immediateList"></div>
+    <div class="field" style="margin-top:12px;">
+      <label>Additional Details</label>
+      <textarea id="immediateDetails" placeholder="Describe any additional immediate response actions..."></textarea>
+    </div>
+  </div>
+
+  <button class="btn-primary" onclick="goTo(3)">Next: Injury &amp; Investigation &#x2192;</button>
+  <button class="btn-outline" onclick="goTo(1)">&#x2190; Back</button>
+</div>
+
+<!-- SCREEN 3: INJURY & INVESTIGATION -->
+<div class="screen" id="screen3">
+  <div class="page-title">Injury &amp; Investigation</div>
+  <div class="page-sub">Injury details, contributing factors, and root cause.</div>
+
+  <div class="card">
+    <div class="card-title">Injury Information</div>
+    <div class="yn-row">
+      <div class="yn-label">Was anyone injured?</div>
+      <div class="yn-btns">
+        <button class="yn-btn yes" id="yn-injured-yes" onclick="setYN('injured','yes')">YES</button>
+        <button class="yn-btn no" id="yn-injured-no" onclick="setYN('injured','no')">NO</button>
+      </div>
+    </div>
+    <div id="injuryWrap" style="display:none;">
+      <div class="field" style="margin-top:10px;"><label>Describe the Injury</label><textarea id="injuryDesc" placeholder="Nature of injury, body part affected..."></textarea></div>
+      <div class="yn-row">
+        <div class="yn-label">First Aid provided?</div>
+        <div class="yn-btns"><button class="yn-btn yes" id="yn-firstaid-yes" onclick="setYN('firstaid','yes')">YES</button><button class="yn-btn no" id="yn-firstaid-no" onclick="setYN('firstaid','no')">NO</button></div>
+      </div>
+      <div class="yn-row">
+        <div class="yn-label">Medical treatment required?</div>
+        <div class="yn-btns"><button class="yn-btn yes" id="yn-medical-yes" onclick="setYN('medical','yes')">YES</button><button class="yn-btn no" id="yn-medical-no" onclick="setYN('medical','no')">NO</button></div>
+      </div>
+      <div class="yn-row">
+        <div class="yn-label">Worker transported for medical attention?</div>
+        <div class="yn-btns"><button class="yn-btn yes" id="yn-transport-yes" onclick="setYN('transport','yes')">YES</button><button class="yn-btn no" id="yn-transport-no" onclick="setYN('transport','no')">NO</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">What Happened?</div>
+    <div class="field"><textarea id="whatHappened" placeholder="Factual account of the incident sequence..."></textarea></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Contributing Factors</div>
+    <div id="contribList"></div>
+    <div class="field" style="margin-top:10px;"><label>Other Contributing Factor</label><input type="text" id="otherContrib" placeholder="Specify if not listed above..."></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Root Cause</div>
+    <div class="field"><textarea id="rootCause" placeholder="Underlying reason(s) the incident occurred..." style="min-height:110px;"></textarea></div>
+  </div>
+
+  <button class="btn-primary" onclick="goTo(4)">Next: Corrective Actions &#x2192;</button>
+  <button class="btn-outline" onclick="goTo(2)">&#x2190; Back</button>
+</div>
+
+<!-- SCREEN 4: CORRECTIVE ACTIONS -->
+<div class="screen" id="screen4">
+  <div class="page-title">Corrective Actions</div>
+  <div class="page-sub">Actions to prevent recurrence and follow-up confirmation.</div>
+
+  <div class="card">
+    <div class="card-title">Corrective Actions Required</div>
+    <div id="caList"></div>
+    <button class="add-ca-btn" onclick="addCA()">+ Add Corrective Action</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Follow-Up</div>
+    <div class="yn-row"><div class="yn-label">Were procedures or safe work practices changed?</div><div class="yn-btns"><button class="yn-btn yes" id="yn-procs-yes" onclick="setYN('procs','yes')">YES</button><button class="yn-btn no" id="yn-procs-no" onclick="setYN('procs','no')">NO</button><button class="yn-btn na" id="yn-procs-na" onclick="setYN('procs','na')">N/A</button></div></div>
+    <div class="yn-row"><div class="yn-label">Was additional employee training required?</div><div class="yn-btns"><button class="yn-btn yes" id="yn-training-yes" onclick="setYN('training','yes')">YES</button><button class="yn-btn no" id="yn-training-no" onclick="setYN('training','no')">NO</button></div></div>
+    <div class="yn-row"><div class="yn-label">Was incident discussed at a safety / toolbox meeting?</div><div class="yn-btns"><button class="yn-btn yes" id="yn-toolbox-yes" onclick="setYN('toolbox','yes')">YES</button><button class="yn-btn no" id="yn-toolbox-no" onclick="setYN('toolbox','no')">NO</button></div></div>
+    <div class="yn-row"><div class="yn-label">Were affected workers informed of corrective actions?</div><div class="yn-btns"><button class="yn-btn yes" id="yn-informed-yes" onclick="setYN('informed','yes')">YES</button><button class="yn-btn no" id="yn-informed-no" onclick="setYN('informed','no')">NO</button></div></div>
+    <div class="yn-row"><div class="yn-label">Are all corrective actions complete?</div><div class="yn-btns"><button class="yn-btn yes" id="yn-complete-yes" onclick="setYN('complete','yes')">YES</button><button class="yn-btn no" id="yn-complete-no" onclick="setYN('complete','no')">NO</button></div></div>
+    <div class="field" style="margin-top:12px;"><label>Follow-Up Comments</label><textarea id="followUpComments" placeholder="Any additional follow-up notes..."></textarea></div>
+  </div>
+
+  <button class="btn-primary" onclick="goTo(5)">Next: Sign-Off &amp; Submit &#x2192;</button>
+  <button class="btn-outline" onclick="goTo(3)">&#x2190; Back</button>
+</div>
+
+<!-- SCREEN 5: SIGN-OFF -->
+<div class="screen" id="screen5">
+  <div class="page-title">Sign-Off &amp; Submit</div>
+  <div class="page-sub">Three signatures to complete the report.</div>
+
+  <div id="reviewSummary"></div>
+
+  <div class="card">
+    <div class="card-title">Investigator Sign-Off</div>
+    <div class="field"><label>Name</label><input type="text" id="signInvestigator" placeholder="Print full name"></div>
+    <div class="field"><label>Date</label><input type="date" id="signInvestigatorDate"></div>
+    <div class="field"><label>Signature</label>
+      <div class="sig-canvas-wrap">
+        <canvas id="investigatorCanvas" height="70"></canvas>
+        <div class="sig-placeholder" id="ph-investigatorCanvas">Sign here</div>
+        <button class="clear-sig" onclick="clearCanvas('investigatorCanvas','ph-investigatorCanvas')">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Supervisor / Manager Sign-Off</div>
+    <div class="field"><label>Name</label><input type="text" id="signSupervisor" placeholder="Print full name"></div>
+    <div class="field"><label>Date</label><input type="date" id="signSupervisorDate"></div>
+    <div class="field"><label>Signature</label>
+      <div class="sig-canvas-wrap">
+        <canvas id="supervisorCanvas" height="70"></canvas>
+        <div class="sig-placeholder" id="ph-supervisorCanvas">Sign here</div>
+        <button class="clear-sig" onclick="clearCanvas('supervisorCanvas','ph-supervisorCanvas')">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Corrective Action Close-Out</div>
+    <div class="field"><label>Reviewed By</label><input type="text" id="closeoutName" placeholder="Print full name"></div>
+    <div class="field"><label>Date Closed</label><input type="date" id="closeoutDate"></div>
+    <div class="field"><label>Signature</label>
+      <div class="sig-canvas-wrap">
+        <canvas id="closeoutCanvas" height="70"></canvas>
+        <div class="sig-placeholder" id="ph-closeoutCanvas">Sign here</div>
+        <button class="clear-sig" onclick="clearCanvas('closeoutCanvas','ph-closeoutCanvas')">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-success" id="submitBtn" onclick="submitForm()">&#x2713; Submit Incident Report</button>
+  <button class="btn-outline" onclick="goTo(4)">&#x2190; Back</button>
+</div>
+
+<!-- SCREEN 6: DONE -->
+<div class="screen" id="screen6">
+  <div style="padding:24px 0;text-align:center;">
+    <div class="done-hero">
+      <div class="done-icon">&#x1F4CB;</div>
+      <div class="done-title">Report Submitted</div>
+      <div class="done-sub" id="doneSub">Incident report sent to the office.</div>
+    </div>
+    <div id="emailStatusMsg" style="margin-top:12px;"></div>
+    <div class="card" style="text-align:left;margin-bottom:16px;">
+      <div class="card-title">Confirmation</div>
+      <div id="confirmDetails"></div>
+    </div>
+    <button class="btn-primary" onclick="location.reload()">Start New Report</button>
+    <button class="btn-outline" onclick="window.print()">&#x1F5A8;&#xFE0F; Print / Save PDF</button>
+  </div>
+</div>
+
+<script>
+emailjs.init('b2h_fLAzlI7hw6cmA');
+
+var COMPANY = 'Dynamic Trenchless';
+var DEST_EMAIL = 'info@dynamictrenchless.com';
+var TEMPLATE = 'template_34dxmgl';
+var HDR_COLOR = '#1a1a1a';
+var ACCENT_COLOR = '#F5A800';
+
+var TYPES = [
+  {icon:'&#x1F929;',name:'Injury / Illness'},
+  {icon:'&#x26A0;&#xFE0F;',name:'Near Miss'},
+  {icon:'&#x1F3D7;&#xFE0F;',name:'Property Damage'},
+  {icon:'&#x2699;&#xFE0F;',name:'Equipment Damage'},
+  {icon:'&#x1F697;',name:'Vehicle Incident'},
+  {icon:'&#x26A1;',name:'Utility Strike'},
+  {icon:'&#x1F573;&#xFE0F;',name:'Excavation / Trench'},
+  {icon:'&#x1F343;',name:'Environmental Spill'},
+  {icon:'&#x1F465;',name:'Public / Customer'},
+  {icon:'&#x1F4DD;',name:'Other'}
+];
+var IMMEDIATE = ['Work stopped','Area secured','First Aid provided','Emergency services contacted','Supervisor notified','Equipment removed from service','Utility owner contacted','Spill contained','Photos taken'];
+var CONTRIB = ['Hazard not identified','Inadequate hazard assessment','Procedure not followed','Procedure inadequate or unavailable','Inadequate training','Equipment failure','Improper equipment / tool used','Ground / site conditions','Underground utility conflict','Communication failure','PPE issue','Housekeeping','Fatigue','Weather / environmental conditions'];
+
+var selType = '';
+var selSeverity = '';
+var ynState = {};
+var immChecked = [];
+var contribChecked = [];
+var caNum = 0;
+var canvases = {};
+
+window.onload = function() {
+  var now = new Date();
+  var today = now.toISOString().split('T')[0];
+  ['incidentDate','reportedDate','signInvestigatorDate','signSupervisorDate'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = today;
+  });
+  var tEl = document.getElementById('incidentTime');
+  if (tEl) tEl.value = now.toTimeString().slice(0,5);
+  buildTypes();
+  buildChecklist('immediateList', IMMEDIATE, immChecked);
+  buildChecklist('contribList', CONTRIB, contribChecked);
+  addCA(); addCA();
+};
+
+function buildTypes() {
+  var g = document.getElementById('typeGrid');
+  TYPES.forEach(function(t) {
+    var b = document.createElement('button');
+    b.className = 'type-chip';
+    b.innerHTML = '<span class="ti">' + t.icon + '</span>' + t.name;
+    b.onclick = function() {
+      document.querySelectorAll('.type-chip').forEach(function(x){ x.classList.remove('selected'); });
+      b.classList.add('selected');
+      selType = t.name;
+      document.getElementById('otherWrap').style.display = (t.name === 'Other') ? 'block' : 'none';
+    };
+    g.appendChild(b);
+  });
+}
+
+function selSev(n) {
+  selSeverity = n;
+  ['Low','Medium','High'].forEach(function(s){ document.getElementById('sev-'+s).classList.remove('sel'); });
+  document.getElementById('sev-'+n).classList.add('sel');
+}
+
+function buildChecklist(id, items, arr) {
+  var c = document.getElementById(id);
+  items.forEach(function(item) {
+    var row = document.createElement('div');
+    row.className = 'check-row';
+    row.innerHTML = '<div class="check-box"></div><div class="check-label">' + item + '</div>';
+    row.onclick = function() {
+      var box = row.querySelector('.check-box');
+      var idx = arr.indexOf(item);
+      if (idx >= 0) { arr.splice(idx,1); box.classList.remove('checked'); box.textContent = ''; }
+      else { arr.push(item); box.classList.add('checked'); box.textContent = '\u2713'; }
+    };
+    c.appendChild(row);
+  });
+}
+
+function setYN(key, val) {
+  ynState[key] = val;
+  ['yes','no','na'].forEach(function(v) {
+    var el = document.getElementById('yn-'+key+'-'+v);
+    if (el) el.className = 'yn-btn ' + v + (val === v ? ' active' : '');
+  });
+  if (key === 'injured') document.getElementById('injuryWrap').style.display = val === 'yes' ? 'block' : 'none';
+}
+
+function addCA() {
+  caNum++;
+  var id = 'ca-' + caNum;
+  var div = document.createElement('div');
+  div.className = 'ca-row';
+  div.id = id;
+  div.innerHTML = '<div class="ca-row-num">Action ' + caNum + '</div>' +
+    '<div class="field"><label>Corrective Action Required</label><input type="text" id="' + id + '-action" placeholder="Describe the corrective action..."></div>' +
+    '<div class="field-row"><div class="field"><label>Responsible Person</label><input type="text" id="' + id + '-person" placeholder="Name"></div>' +
+    '<div class="field"><label>Due Date</label><input type="date" id="' + id + '-due"></div></div>';
+  document.getElementById('caList').appendChild(div);
+}
+
+function initCanvas(id) {
+  var canvas = document.getElementById(id);
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  canvas.width = (rect.width || 300) * dpr;
+  canvas.height = 70 * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  var state = {drawing: false, hasContent: false};
+  canvases[id] = {canvas: canvas, ctx: ctx, state: state};
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var t = e.touches ? e.touches[0] : e;
+    return {x: t.clientX - r.left, y: t.clientY - r.top};
+  }
+  canvas.addEventListener('mousedown', function(e){ e.preventDefault(); state.drawing=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+  canvas.addEventListener('mousemove', function(e){ if(!state.drawing)return; e.preventDefault(); var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); state.hasContent=true; hidePH(id); });
+  canvas.addEventListener('mouseup', function(){ state.drawing=false; });
+  canvas.addEventListener('touchstart', function(e){ e.preventDefault(); state.drawing=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }, {passive:false});
+  canvas.addEventListener('touchmove', function(e){ if(!state.drawing)return; e.preventDefault(); var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); state.hasContent=true; hidePH(id); }, {passive:false});
+  canvas.addEventListener('touchend', function(){ state.drawing=false; });
+}
+
+function hidePH(id) { var ph=document.getElementById('ph-'+id); if(ph) ph.style.display='none'; }
+function clearCanvas(id, phId) {
+  var c = canvases[id];
+  if (c) {
+    var dpr = window.devicePixelRatio || 1;
+    c.ctx.clearRect(0,0,c.canvas.width/dpr,c.canvas.height/dpr);
+    c.ctx.fillStyle='#fff'; c.ctx.fillRect(0,0,c.canvas.width/dpr,c.canvas.height/dpr);
+    c.state.hasContent = false;
+  }
+  var ph = document.getElementById(phId);
+  if (ph) ph.style.display = '';
+}
+function getSig(id) {
+  var c = canvases[id];
+  if (!c || !c.state.hasContent) return null;
+  var o = document.createElement('canvas'); o.width=400; o.height=100;
+  var ctx = o.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,400,100);
+  ctx.drawImage(c.canvas,0,0,400,100);
+  return o.toDataURL('image/png');
+}
+
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('screen'+n).classList.add('active');
+  window.scrollTo(0,0);
+  for (var i=1; i<=5; i++) {
+    var pd = document.getElementById('pd'+i);
+    if (pd) pd.className = 'progress-dot' + (i<n?' done':i===n?' active':'');
+    if (i<5) { var ps=document.getElementById('ps'+i); if(ps) ps.className='progress-seg'+(i<n?' done':''); }
+  }
+  document.getElementById('stepLabel').textContent = n<=5 ? 'Step '+n+' of 5' : '\u2713 Done';
+  if (n === 5) {
+    function v(id){ var el=document.getElementById(id); return el?el.value||'\u2014':'\u2014'; }
+    document.getElementById('reviewSummary').innerHTML = '<div class="card"><div class="card-title">Summary</div>' +
+      '<div class="summary-stat"><span class="lbl">Type</span><span style="font-weight:700;">'+(selType||'\u2014')+'</span></div>' +
+      '<div class="summary-stat"><span class="lbl">Severity</span><span class="badge '+(selSeverity==='High'?'badge-red':'badge-primary')+'">'+(selSeverity||'\u2014')+'</span></div>' +
+      '<div class="summary-stat"><span class="lbl">Project</span><span style="font-weight:700;">'+v('projectName')+'</span></div>' +
+      '<div class="summary-stat"><span class="lbl">Date</span><span style="font-weight:700;">'+v('incidentDate')+' at '+v('incidentTime')+'</span></div>' +
+      '<div class="summary-stat"><span class="lbl">Person Involved</span><span style="font-weight:700;">'+v('involvedName')+'</span></div>' +
+      '<div class="summary-stat"><span class="lbl">Investigator</span><span style="font-weight:700;">'+v('investigatorName')+'</span></div></div>';
+    document.getElementById('signInvestigator').value = v('investigatorName') !== '\u2014' ? v('investigatorName') : '';
+    document.getElementById('signSupervisor').value = v('supervisorName') !== '\u2014' ? v('supervisorName') : '';
+    setTimeout(function(){ ['investigatorCanvas','supervisorCanvas','closeoutCanvas'].forEach(initCanvas); }, 120);
+  }
+}
+
+function yn(k) { return ynState[k] || '\u2014'; }
+
+function v(id) { var el=document.getElementById(id); return el?el.value||'\u2014':'\u2014'; }
+
+async function submitForm() {
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('sendingOverlay').classList.add('active');
+
+  var refId = 'INC-' + Date.now().toString(36).toUpperCase();
+  var sevColor = selSeverity==='High'?'#B71C1C':selSeverity==='Medium'?'#E65100':'#2E7D32';
+  var sevBg = selSeverity==='High'?'#FFEBEE':selSeverity==='Medium'?'#FFF3E0':'#E8F5E9';
+
+  var immRows = immChecked.map(function(a){ return '<li style="padding:3px 0;">'+a+'</li>'; }).join('') || '<li>None checked</li>';
+  var contRows = contribChecked.map(function(a){ return '<li style="padding:3px 0;">'+a+'</li>'; }).join('') || '<li>None checked</li>';
+  var otherC = document.getElementById('otherContrib').value;
+  if (otherC) contRows += '<li style="padding:3px 0;">' + otherC + '</li>';
+
+  var caRows = '';
+  for (var i=1; i<=caNum; i++) {
+    var act = document.getElementById('ca-'+i+'-action')?document.getElementById('ca-'+i+'-action').value:'';
+    var per = document.getElementById('ca-'+i+'-person')?document.getElementById('ca-'+i+'-person').value:'\u2014';
+    var due = document.getElementById('ca-'+i+'-due')?document.getElementById('ca-'+i+'-due').value:'\u2014';
+    if (act) caRows += '<tr style="border-bottom:1px solid #eee;"><td style="padding:7px 10px;">'+i+'</td><td style="padding:7px 10px;">'+act+'</td><td style="padding:7px 10px;">'+per+'</td><td style="padding:7px 10px;">'+due+'</td></tr>';
+  }
+
+  var invSig = getSig('investigatorCanvas');
+  var supSig = getSig('supervisorCanvas');
+  var closeSig = getSig('closeoutCanvas');
+  function sigCell(s){ return s?'<img src="'+s+'" style="height:40px;width:auto;border:1px solid #ddd;border-radius:4px;">':'\u2014'; }
+
+  var msg = '<div style="font-family:Arial,sans-serif;max-width:660px;margin:0 auto;">' +
+    '<div style="background:'+HDR_COLOR+';padding:20px 24px 16px;border-radius:8px 8px 0 0;">' +
+    '<div style="color:#fff;font-size:18px;font-weight:900;">&#x1F6A8; INCIDENT / NEAR-MISS INVESTIGATION REPORT</div>' +
+    '<div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:4px;letter-spacing:1.5px;">'+COMPANY.toUpperCase()+'</div>' +
+    '</div>' +
+    '<div style="background:linear-gradient(90deg,'+ACCENT_COLOR+',#fff);height:3px;"></div>' +
+    '<div style="background:#fff;padding:20px 24px;border:1px solid #eee;border-top:none;">' +
+    '<div style="background:'+sevBg+';border-radius:8px;padding:12px 16px;margin-bottom:20px;text-align:center;">' +
+    '<span style="color:'+sevColor+';font-size:16px;font-weight:900;">Severity: '+(selSeverity||'Not set')+'&nbsp;|&nbsp;Type: '+(selType||'Not set')+'</span></div>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px;">' +
+    '<tr><td style="padding:5px 0;color:#888;width:140px;">Company</td><td colspan="3" style="font-weight:700;">'+COMPANY+'</td></tr>' +
+    '<tr><td style="padding:5px 0;color:#888;">Project</td><td style="font-weight:700;">'+v('projectName')+'</td><td style="color:#888;width:100px;">Location</td><td style="font-weight:700;">'+v('incidentLocation')+'</td></tr>' +
+    '<tr><td style="padding:5px 0;color:#888;">Date / Time</td><td style="font-weight:700;">'+v('incidentDate')+' at '+v('incidentTime')+'</td><td style="color:#888;">Date Reported</td><td style="font-weight:700;">'+v('reportedDate')+'</td></tr>' +
+    '<tr><td style="padding:5px 0;color:#888;">Supervisor</td><td style="font-weight:700;">'+v('supervisorName')+'</td><td style="color:#888;">Investigator</td><td style="font-weight:700;">'+v('investigatorName')+'</td></tr>' +
+    '</table>' +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Person(s) Involved</div>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px;">' +
+    '<tr><td style="padding:4px 0;color:#888;width:130px;">Name</td><td style="font-weight:700;">'+v('involvedName')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">Position</td><td style="font-weight:700;">'+v('involvedPosition')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">Employer</td><td style="font-weight:700;">'+v('involvedEmployer')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">Witnesses</td><td style="font-weight:700;">'+v('witnesses')+'</td></tr>' +
+    '</table>' +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Description of Incident</div>' +
+    '<div style="font-size:13px;line-height:1.6;padding:10px;background:#fafafa;border-radius:6px;margin-bottom:16px;">'+v('incidentDesc')+'</div>' +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Immediate Actions</div>' +
+    '<ul style="font-size:13px;padding-left:20px;margin-bottom:8px;line-height:1.8;">'+immRows+'</ul>' +
+    (v('immediateDetails')!=='\u2014'?'<div style="font-size:13px;padding:8px 10px;background:#fafafa;border-radius:6px;margin-bottom:16px;font-style:italic;">'+v('immediateDetails')+'</div>':'') +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Injury Information</div>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px;">' +
+    '<tr><td style="padding:4px 0;color:#888;width:200px;">Anyone injured?</td><td style="font-weight:700;">'+yn('injured')+'</td></tr>' +
+    (ynState['injured']==='yes'?'<tr><td style="padding:4px 0;color:#888;">Injury description</td><td style="font-weight:700;">'+v('injuryDesc')+'</td></tr><tr><td style="padding:4px 0;color:#888;">First Aid</td><td style="font-weight:700;">'+yn('firstaid')+'</td></tr><tr><td style="padding:4px 0;color:#888;">Medical treatment</td><td style="font-weight:700;">'+yn('medical')+'</td></tr><tr><td style="padding:4px 0;color:#888;">Transported</td><td style="font-weight:700;">'+yn('transport')+'</td></tr>':'') +
+    '</table>' +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Investigation</div>' +
+    '<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px;">What Happened?</div>' +
+    '<div style="font-size:13px;line-height:1.6;padding:10px;background:#fafafa;border-radius:6px;margin-bottom:10px;">'+v('whatHappened')+'</div>' +
+    '<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px;">Contributing Factors</div>' +
+    '<ul style="font-size:13px;padding-left:20px;margin-bottom:10px;line-height:1.8;">'+contRows+'</ul>' +
+    '<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px;">Root Cause</div>' +
+    '<div style="font-size:13px;line-height:1.6;padding:10px;background:#fafafa;border-radius:6px;margin-bottom:16px;">'+v('rootCause')+'</div>' +
+    (caRows?'<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Corrective Actions</div>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #eee;">' +
+    '<tr style="background:#f5f5f5;"><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">#</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Action</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Responsible</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Due</th></tr>'+caRows+'</table>':'') +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Follow-Up</div>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px;">' +
+    '<tr><td style="padding:4px 0;color:#888;width:250px;">Procedures changed?</td><td style="font-weight:700;">'+yn('procs')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">Additional training?</td><td style="font-weight:700;">'+yn('training')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">Discussed at safety meeting?</td><td style="font-weight:700;">'+yn('toolbox')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">Workers informed?</td><td style="font-weight:700;">'+yn('informed')+'</td></tr>' +
+    '<tr><td style="padding:4px 0;color:#888;">All actions complete?</td><td style="font-weight:700;">'+yn('complete')+'</td></tr>' +
+    (v('followUpComments')!=='\u2014'?'<tr><td style="padding:4px 0;color:#888;">Comments</td><td style="font-weight:700;">'+v('followUpComments')+'</td></tr>':'') +
+    '</table>' +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:'+HDR_COLOR+';padding:10px 0 6px;border-top:2px solid '+HDR_COLOR+';">Sign-Off</div>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #eee;">' +
+    '<tr style="background:#f5f5f5;"><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Role</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Name</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Date</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;">Signature</th></tr>' +
+    '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;font-size:12px;color:#888;">Investigator</td><td style="padding:10px;font-weight:700;">'+v('signInvestigator')+'</td><td style="padding:10px;">'+v('signInvestigatorDate')+'</td><td style="padding:10px;">'+sigCell(invSig)+'</td></tr>' +
+    '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;font-size:12px;color:#888;">Supervisor</td><td style="padding:10px;font-weight:700;">'+v('signSupervisor')+'</td><td style="padding:10px;">'+v('signSupervisorDate')+'</td><td style="padding:10px;">'+sigCell(supSig)+'</td></tr>' +
+    '<tr><td style="padding:10px;font-size:12px;color:#888;">Close-Out</td><td style="padding:10px;font-weight:700;">'+v('closeoutName')+'</td><td style="padding:10px;">'+v('closeoutDate')+'</td><td style="padding:10px;">'+sigCell(closeSig)+'</td></tr>' +
+    '</table>' +
+    '<div style="background:#f8f8f8;padding:10px 14px;border-radius:6px;font-size:11px;color:#888;">Ref: '+refId+' | Submitted: '+new Date().toLocaleString('en-CA')+' | '+COMPANY+'</div>' +
+    '</div></div>';
+
+  var ok = false;
+  try {
+    await emailjs.send('service_trpdmd3', TEMPLATE, {
+      to_email: DEST_EMAIL,
+      job_number: v('projectName'),
+      project_name: v('projectName') + ' — ' + (selType || 'Incident'),
+      supervisor: v('supervisorName'),
+      date: v('incidentDate'),
+      message: msg
+    });
+    ok = true;
+  } catch(e) { console.error(e); }
+
+  document.getElementById('sendingOverlay').classList.remove('active');
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('screen6').classList.add('active');
+  document.querySelector('.brand-header').style.display = 'none';
+  window.scrollTo(0,0);
+
+  document.getElementById('doneSub').textContent = 'Report submitted for ' + COMPANY + '.';
+  document.getElementById('emailStatusMsg').innerHTML = ok
+    ? '<div class="email-ok">&#x1F4E7; Report emailed to ' + DEST_EMAIL + '</div>'
+    : '<div class="email-fail">&#x26A0;&#xFE0F; Email failed — use Print to save a local copy.</div>';
+  document.getElementById('confirmDetails').innerHTML =
+    '<div class="summary-stat"><span class="lbl">Ref ID</span><span style="font-weight:700;">'+refId+'</span></div>' +
+    '<div class="summary-stat"><span class="lbl">Type</span><span style="font-weight:700;">'+(selType||'\u2014')+'</span></div>' +
+    '<div class="summary-stat"><span class="lbl">Severity</span><span class="badge '+(selSeverity==='High'?'badge-red':'badge-primary')+'">'+(selSeverity||'\u2014')+'</span></div>' +
+    '<div class="summary-stat"><span class="lbl">Project</span><span style="font-weight:700;">'+v('projectName')+'</span></div>' +
+    '<div class="summary-stat"><span class="lbl">Submitted</span><span style="font-weight:700;">'+new Date().toLocaleString('en-CA')+'</span></div>';
+}
+</script>
+</body>
+</html>
